@@ -28,10 +28,10 @@ class NeuralNetworkSNGP(nn.Module):
     return logits
 
 
-num_input_features = 5
-num_target_features = 4
-# Example time series data (replace with your actual data)
-# Each sample has 50 timesteps and 2 features
+num_input_features = 10
+num_target_features = 14
+# Example time series data
+# Each sample (100 samples) has 50 timesteps and 2 features
 data = torch.randn(100, 50, num_input_features)
 # Labels for each time series
 labels = torch.randint(0, num_target_features, size=(100,))
