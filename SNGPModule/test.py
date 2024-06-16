@@ -60,10 +60,11 @@ for epoch in range(10):
     if i % 50 == 0:
       print(f"Epoch: {epoch+1}, Step: {i}, Loss: {loss.item():.4f}")
 
-new_data = torch.randn(1, 50, num_input_features)
+new_data = torch.randn(10, 50, num_input_features)
 prediction = model(new_data).argmax(dim=1)
 print(prediction)
-predicted_class = prediction.argmax(dim=1).item()
-print(f"Predicted class for new data: {predicted_class}")
+for p in prediction:
+    predicted_class = p.argmax(dim=0).item()
+    print(f"Predicted class for new data: {predicted_class}")
 
 
