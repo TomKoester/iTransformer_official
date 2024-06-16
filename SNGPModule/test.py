@@ -30,7 +30,7 @@ class NeuralNetworkSNGP(nn.Module):
 
 num_input_features = 10
 num_target_features = 14
-# Example time series data
+
 # Each sample (100 samples) has 50 timesteps and 2 features
 data = torch.randn(100, 50, num_input_features)
 # Labels for each time series
@@ -39,7 +39,6 @@ labels = torch.randint(0, num_target_features, size=(100,))
 dataset = TensorDataset(data, labels)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-# Define the model with appropriate input size
 model = NeuralNetworkSNGP(num_input_features, 64, num_target_features)  # Assuming 2 features and 3 classes
 
 criterion = nn.CrossEntropyLoss()
