@@ -28,18 +28,19 @@ class NeuralNetworkSNGP(nn.Module):
     return logits
 
 
-
+num_input_features = 5
+num_target_features = 4
 # Example time series data (replace with your actual data)
 # Each sample has 50 timesteps and 2 features
-data = torch.randn(100, 50, 2)
+data = torch.randn(100, 50, num_input_features)
 # Labels for each time series
-labels = torch.randint(0, 3, size=(100,))
+labels = torch.randint(0, num_target_features, size=(100,))
 
 dataset = TensorDataset(data, labels)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 # Define the model with appropriate input size
-model = NeuralNetworkSNGP(2, 64, 3)  # Assuming 2 features and 3 classes
+model = NeuralNetworkSNGP(num_input_features, 64, num_target_features)  # Assuming 2 features and 3 classes
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -49,8 +50,8 @@ for epoch in range(10):
     optimizer.zero_grad()
     logits = model(timeseries)
 
-    labels = F.one_hot(labels, num_classes=3)  # One-hot encode labels with 3 classes
-    labels = labels.view(labels.size(0), 3)  # Reshape to [batch_size, num_classes]
+    labels = F.one_hot(labels, num_classes=num_target_features)  # One-hot encode labels with 3 classes
+    labels = labels.view(labels.size(0), num_target_features)  # Reshape to [batch_size, num_classes]
     loss = criterion(logits, labels)
     loss.backward()
     optimizer.step()
@@ -59,7 +60,7 @@ for epoch in range(10):
     if i % 50 == 0:
       print(f"Epoch: {epoch+1}, Step: {i}, Loss: {loss.item():.4f}")
 
-new_data = torch.randn(1, 50, 2)
+new_data = torch.randn(1, 50, num_input_features)
 prediction = model(new_data).argmax(dim=1)
 print(prediction)
 predicted_class = prediction.argmax(dim=1).item()
