@@ -1,7 +1,7 @@
-from layers.Transformer_EncDec import Encoder, EncoderLayer
-from layers.SelfAttention_Family import FullAttention, AttentionLayer
-from layers.Embed import DataEmbedding_inverted
-
+"""
+Implementation of a Spectral-normalized Gaussian Process transformer as presented in
+`Liu et al. (2020) <https://arxiv.org/pdf/2006.10108.pdf>`_.
+"""
 
 # STD
 import math
@@ -123,7 +123,7 @@ class SNGP(nn.Module):
 
     def forward(
         self, x: torch.FloatTensor
-    ) -> Tuple[torch.FloatTensor, torch.Tensor]:
+    ) -> torch.FloatTensor:
         """
         Forward pass for SNGPModule layer.
 
@@ -160,8 +160,8 @@ class SNGP(nn.Module):
                 )
                 self.sigma_hat_inv *= self.scaling_coefficient
                 self.sigma_hat_inv += (1 - self.scaling_coefficient) * PhiPhi
-                self.sigma_hat = torch.inverse(self.sigma_hat_inv)
-        return logits, self.sigma_hat
+
+        return logits
 
     def predict(self, x: torch.FloatTensor, num_predictions: Optional[int] = None):
         """
@@ -242,7 +242,7 @@ class SNGP(nn.Module):
         # n: number of predictions
         logits = torch.einsum("bsk,nkk->bnsk", Phi, beta_samples)
 
-        return logits, self.sigma_hat
+        return logits
 
     def invert_sigma_hat(self) -> None:
         """
@@ -265,88 +265,3 @@ class SNGP(nn.Module):
             )
             for k in range(self.output_size)
         ]
-
-class Model(nn.Module):
-    """
-    Paper link: https://arxiv.org/abs/2310.06625
-    """
-
-    def __init__(self, configs):
-        super(Model, self).__init__()
-        self.seq_len = configs.seq_len
-        self.pred_len = configs.pred_len
-        self.output_attention = configs.output_attention
-        self.use_norm = configs.use_norm
-        # Embedding
-        # added Spectral normalization into DataEmbedding class
-        self.enc_embedding = DataEmbedding_inverted(configs.seq_len, configs.d_model, configs.embed, configs.freq,
-                                                    configs.dropout)
-        self.class_strategy = configs.class_strategy
-        # Encoder-only architecture
-        self.encoder = Encoder(
-            [
-                EncoderLayer(
-                    AttentionLayer(
-                        FullAttention(False, configs.factor, attention_dropout=configs.dropout,
-                                      output_attention=configs.output_attention), configs.d_model, configs.n_heads),
-                    configs.d_model,
-                    configs.d_ff,
-                    dropout=configs.dropout,
-                    activation=configs.activation
-                ) for l in range(configs.e_layers)
-            ],
-            # add here spectral normalization?
-            norm_layer=torch.nn.LayerNorm(configs.d_model)
-        )
-        self.projector = nn.utils.spectral_norm(nn.Linear(configs.d_model, configs.pred_len, bias=True))
-        self.sngplayer = SNGP(configs.d_model, configs.d_model, 0.1, 0.8, 0.7, 1.0, 5, torch.device("cpu"))
-
-        # sigmoid for probabilities
-        # self.sigmoid = nn.Sigmoid()
-    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
-        if self.use_norm:
-            # Normalization from Non-stationary Transformer
-            means = x_enc.mean(1, keepdim=True).detach()
-            x_enc = x_enc - means
-            stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
-            x_enc /= stdev
-
-        _, _, N = x_enc.shape  # B L N
-        # B: batch_size;    E: d_model;
-        # L: seq_len;       S: pred_len;
-        # N: number of variate (tokens), can also includes covariates
-
-        # Embedding
-        # B L N -> B N E                (B L N -> B L E in the vanilla Transformer)
-        enc_out = self.enc_embedding(x_enc, x_mark_enc)  # covariates (e.g timestamp) can be also embedded as tokens
-
-        # B N E -> B N E                (B L E -> B L E in the vanilla Transformer)
-        # the dimensions of embedded time series has been inverted, and then processed by native attn, layernorm and ffn modules
-        enc_out, attns = self.encoder(enc_out, attn_mask=None)
-
-        # B N E -> B N S -> B S N
-        dec_out = self.projector(enc_out).permute(0, 2, 1)[:, :, :N]  # filter the covariates
-
-        if self.use_norm:
-            # De-Normalization from Non-stationary Transformer
-            dec_out = dec_out * (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-            dec_out = dec_out + (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-
-        return dec_out
-
-    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
-        dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-        sngp_output, covmat = self.sngplayer(dec_out)
-        sigmoid = torch.sigmoid(sngp_output)
-        # get probabilities
-        print(sigmoid)
-        threshold = 0.7
-
-        # Apply the threshold to get binary output
-        binary_output = (sigmoid > threshold).float()
-
-        # Print the binary output
-        print("Binary output:", binary_output)
-        print(covmat)
-        return sigmoid[:, -self.pred_len:, :]  # [B, L, D]
-
