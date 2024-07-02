@@ -299,7 +299,7 @@ class Model(nn.Module):
             norm_layer=torch.nn.LayerNorm(configs.d_model)
         )
         self.projector = nn.utils.spectral_norm(nn.Linear(configs.d_model, configs.pred_len, bias=True))
-        self.sngplayer = SNGP(configs.d_model, configs.d_model, 0.1, 0.8, 0.7, 1.0, 5, torch.device("cpu"))
+        self.sngplayer = SNGP(configs.d_model, configs.c_out, 0.1, 0.8, 0.7, 1.0, 5, torch.device("cpu"))
 
         # sigmoid for probabilities
         # self.sigmoid = nn.Sigmoid()
@@ -344,9 +344,10 @@ class Model(nn.Module):
 
         # Apply the threshold to get binary output
         binary_output = (sigmoid > threshold).float()
+        torch.set_printoptions(edgeitems=6)
 
         # Print the binary output
         print("Binary output:", binary_output)
-        print(covmat)
+        # print(covmat)
         return sigmoid[:, -self.pred_len:, :]  # [B, L, D]
 

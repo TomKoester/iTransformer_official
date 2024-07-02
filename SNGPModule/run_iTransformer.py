@@ -19,6 +19,7 @@ class Config:
         self.activation = 'relu'
         self.d_ff = 2048
         self.e_layers = 2
+        self.c_out = 50
 
 def main():
     configs = Config()
