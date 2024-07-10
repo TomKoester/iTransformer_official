@@ -10,6 +10,7 @@ python -u run.py \
   --model $model_name \
   --data custom \
   --features M \
+
   --seq_len 96 \
   --pred_len 96 \
   --e_layers 4 \

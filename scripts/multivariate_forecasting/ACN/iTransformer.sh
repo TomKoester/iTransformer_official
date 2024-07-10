@@ -5,10 +5,10 @@ model_name=iTransformer
 python -u run.py \
   --is_training 1 \
   --root_path ./dataset/ACN/ \
-  --data_path acn.csv \
+  --data_path finalACN.csv \
   --model_id ACN_96_96 \
   --model $model_name \
-  --data custom \
+  --data ACN \
   --features M \
   --seq_len 96 \
   --pred_len 96 \
@@ -26,10 +26,10 @@ python -u run.py \
 python -u run.py \
   --is_training 1 \
   --root_path ./dataset/ACN/ \
-  --data_path acn.csv \
+  --data_path finalACN.csv \
   --model_id ACN_96_192 \
   --model $model_name \
-  --data custom \
+  --data ACN \
   --features M \
   --seq_len 96 \
   --pred_len 192 \
@@ -47,11 +47,11 @@ python -u run.py \
 python -u run.py \
   --is_training 1 \
   --root_path ./dataset/ACN/ \
-  --data_path acn.csv \
+  --data_path finalACN.csv \
   --model_id ACN_96_336 \
   --model_id traffic_96_336 \
   --model $model_name \
-  --data custom \
+  --data ACN \
   --features M \
   --seq_len 96 \
   --pred_len 336 \
@@ -72,7 +72,7 @@ python -u run.py \
   --data_path acn.csv \
   --model_id ACN_96_720 \
   --model $model_name \
-  --data custom \
+  --data ACN \
   --features M \
   --seq_len 96 \
   --pred_len 720 \
