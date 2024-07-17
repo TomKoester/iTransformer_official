@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from utils.timefeatures import time_features
 import warnings
 
@@ -548,11 +548,10 @@ class Dataset_Pred(Dataset):
 
 class Dataset_ACN(Dataset):
     def __init__(self, root_path, flag='train', size=None,
-                 features='S', data_path='ETTh1.csv',
+                 features='S', data_path='final_ACN.csv',
                  target='OT', scale=True, timeenc=0, freq='h'):
         # size [seq_len, label_len, pred_len]
-
-        if size == None:
+        if size is None:
             self.seq_len = 24 * 4 * 4
             self.label_len = 24 * 4
             self.pred_len = 24 * 4
@@ -577,25 +576,28 @@ class Dataset_ACN(Dataset):
 
     def __read_data__(self):
         self.scaler = StandardScaler()
-        df_raw = pd.read_csv(os.path.join(self.root_path,
-                                          self.data_path), nrows=1200)
-        columns_to_drop = ['stationID', 'DayCategory', 'siteType', 'EVSEType', 'zipCode', 'location']
-        df_raw = df_raw.drop(columns=columns_to_drop)
-        print(os.path.join(self.root_path, self.data_path))
-        print(os.path.join(self.root_path, self.data_path))
-        print(os.path.join(self.root_path, self.data_path))
-        print(os.path.join(self.root_path, self.data_path))
-        print(os.path.join(self.root_path, self.data_path))
+        df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path))
+
+        # Columns to encode
+        columns_to_encode = ['stationID', 'DayCategory', 'siteType', 'EVSEType', 'zipCode', 'location']
+        # Apply Label Encoding
+        label_encoders = {}
+        for column in columns_to_encode:
+            le = LabelEncoder()
+            df_raw[column] = le.fit_transform(df_raw[column])
+            label_encoders[column] = le
+        # To check if all columns are encoded
+        output_path = os.path.join(self.root_path, 'encoded_data.xlsx')
+        df_raw.to_excel(output_path, index=False)
+
         print(os.path.join(self.root_path, self.data_path))
         print(self.target)
-        '''
-        df_raw.columns: ['date', ...(other features), target feature]
-        '''
+
         cols = list(df_raw.columns)
         print(cols)
         cols.remove(self.target)
         cols.remove('timestamps')
-        df_raw = df_raw[['timestamps'] + cols + [self.target]]
+        df_raw  = df_raw[['timestamps'] + cols + [self.target]]
         num_train = int(len(df_raw) * 0.7)
         num_test = int(len(df_raw) * 0.2)
         num_vali = len(df_raw) - num_train - num_test
@@ -625,7 +627,7 @@ class Dataset_ACN(Dataset):
             df_stamp['day'] = df_stamp.timestamps.apply(lambda row: row.day, 1)
             df_stamp['weekday'] = df_stamp.timestamps.apply(lambda row: row.weekday(), 1)
             df_stamp['hour'] = df_stamp.timestamps.apply(lambda row: row.hour, 1)
-            data_stamp = df_stamp.drop(['timestamps'], 1).values
+            data_stamp = df_stamp.drop(['timestamps'], axis=1).values
         elif self.timeenc == 1:
             data_stamp = time_features(pd.to_datetime(df_stamp['timestamps'].values), freq=self.freq)
             data_stamp = data_stamp.transpose(1, 0)
@@ -633,6 +635,7 @@ class Dataset_ACN(Dataset):
         self.data_x = data[border1:border2]
         self.data_y = data[border1:border2]
         self.data_stamp = data_stamp
+        self.label_encoders = label_encoders  # Store the label encoders for possible inverse transform
 
     def __getitem__(self, index):
         s_begin = index
@@ -652,4 +655,3 @@ class Dataset_ACN(Dataset):
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
-
